@@ -36,4 +36,20 @@ defmodule StreamTools.CombineTests do
      GenEvent.notify(event_manager_b, 5)
      assert_receive %{a: nil, b: 5}
   end
+
+  test "should finish enumerating stream when combiner process dies" do
+     {:ok, event_manager_a} = GenEvent.start_link
+     stream_map = %{a: GenEvent.stream(event_manager_a)}
+     {:ok, combined} = Combine.start stream_map
+     test_pid = self
+     spawn_link fn ->
+         all_recieved = Combine.stream(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
+         send test_pid, {:finished_stream, all_recieved}
+     end
+     :timer.sleep(100)
+     GenEvent.notify(event_manager_a, 1)
+     :timer.sleep(100)
+     Process.exit(combined, :kill)
+     assert_receive {:finished_stream, [%{a: 1}]}
+  end
 end
