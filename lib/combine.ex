@@ -6,10 +6,13 @@ defmodule StreamTools.Combine do
 
     def last_value(combined), do: GenServer.call(combined, {:last_value})
 
-    def stream(combined) do
+    def stream_linked(combined) do
+      stream(combined, true)
+    end
+    def stream(combined, linked? \\ false) do
       Stream.resource(
         fn -> begin_stream(combined) end,
-        &get_next_stream_item/1,
+        &get_next_stream_item(&1, linked?),
         &close_stream(combined,&1))
     end
 
@@ -63,12 +66,15 @@ defmodule StreamTools.Combine do
     defp publish_to_all_subscribers(subscribers, message), do: subscribers |> Enum.each(&publish_to_subscriber(&1, message))
     defp publish_to_subscriber({pid, %{subscriber_ref: ref}}, item), do: send(pid, {:new_stream_item, ref, item})
 
-    defp get_next_stream_item(ref) do
+    defp get_next_stream_item(ref, linked? \\ false) do
       receive do
           {:new_stream_item, ref, item} -> {[item], ref}
           {:eos, ^ref} -> {:halt, ref}
           {:DOWN, ^ref, :process, _, _} ->
             IO.puts "stream iterator recieved DOWN from source"
+            if linked? do
+              Process.exit(self(),:kill)
+            end
             {:halt, ref}
       end
     end
