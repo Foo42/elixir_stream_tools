@@ -22,4 +22,18 @@ defmodule StreamTools.CombineTests do
      :timer.sleep(100)
      assert Combine.last_value(combined) == %{a: nil, b: 5}
   end
+
+  test "should stream combined value" do
+     {:ok, event_manager_a} = GenEvent.start_link
+     {:ok, event_manager_b} = GenEvent.start_link
+     stream_map = %{a: GenEvent.stream(event_manager_a), b: GenEvent.stream(event_manager_b)}
+     {:ok, combined} = Combine.start_link stream_map
+     test_pid = self
+     spawn_link fn ->
+         Combine.stream(combined) |> Stream.each(&send(test_pid,&1)) |> Stream.run
+     end
+     :timer.sleep(100)
+     GenEvent.notify(event_manager_b, 5)
+     assert_receive %{a: nil, b: 5}
+  end
 end
