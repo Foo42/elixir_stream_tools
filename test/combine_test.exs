@@ -70,4 +70,21 @@ defmodule StreamTools.CombineTests do
      refute Process.alive? follower
      refute_received "exited nicely"
   end
+
+  test "should die when producer process dies if streaming with stream_linked" do
+     {:ok, event_manager_a} = GenEvent.start
+     stream_map = %{a: GenEvent.stream(event_manager_a)}
+     {:ok, combined} = Combine.start stream_map
+     test_pid = self
+     follower = spawn fn ->
+         all_recieved = Combine.stream_linked(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
+         send test_pid, "exited nicely"
+     end
+     :timer.sleep(100)
+     assert Process.alive? follower
+     Process.exit(event_manager_a, :kill)
+     :timer.sleep(100)
+     refute Process.alive? follower
+     refute_received "exited nicely"
+  end
 end
