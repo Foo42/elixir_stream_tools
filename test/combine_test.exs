@@ -82,7 +82,7 @@ defmodule StreamTools.CombineTests do
      end
      :timer.sleep(100)
      assert Process.alive? follower
-     Process.exit(event_manager_a, :kill)
+     Process.exit(combined, :kill)
      :timer.sleep(100)
      refute Process.alive? follower
      refute_received "exited nicely"

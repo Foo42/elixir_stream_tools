@@ -71,7 +71,6 @@ defmodule StreamTools.Combine do
           {:new_stream_item, ref, item} -> {[item], ref}
           {:eos, ^ref} -> {:halt, ref}
           {:DOWN, ^ref, :process, _, _} ->
-            IO.puts "stream iterator recieved DOWN from source"
             if linked? do
               Process.exit(self(),:kill)
             end
@@ -81,14 +80,12 @@ defmodule StreamTools.Combine do
 
     defp begin_stream(combined) do
       ref = Process.monitor(combined)
-      IO.puts "#{inspect self()} is monitoring #{inspect combined} with ref #{inspect ref}"
       :ok = GenServer.call(combined, {:subscribe, self(), ref})
       ref
     end
+
     defp close_stream(combined, ref) do
-      IO.puts "closing stream #{inspect ref}"
       Process.demonitor(ref)
       GenServer.cast(combined, {:unsubscribe, self(), ref})
-      IO.puts "closed stream #{inspect ref}"
     end
 end
