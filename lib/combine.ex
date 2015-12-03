@@ -39,6 +39,10 @@ defmodule StreamTools.Combine do
     end
 
     def handle_cast({:unsubscribe, pid, ref}, state = %{subscribers: subscribers}) do
+      case Map.get(state.subscribers, pid) do
+        nil -> nil
+        %{subscriber_monitor: monitor} -> Process.demonitor(monitor)
+      end
       {:noreply, %{state | subscribers: Map.delete(subscribers, pid)}}
     end
 

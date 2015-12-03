@@ -47,7 +47,13 @@ defmodule StreamTools.Observable do
     {:reply, :ok, %{state | subscribers: subscribers}}
   end
 
-  def handle_cast({:unsubscribe, pid, ref}, state), do: {:noreply, %{state | subscribers: Map.delete(state.subscribers, pid)}}
+  def handle_cast({:unsubscribe, pid, ref}, state) do
+    case Map.get(state.subscribers, pid) do
+      nil -> nil
+      %{subscriber_monitor: monitor} -> Process.demonitor(monitor)
+    end
+    {:noreply, %{state | subscribers: Map.delete(state.subscribers, pid)}}
+  end
 
   def handle_info({:DOWN, ref, :process, pid, _reason}, state = %{subscribers: subscribers}) do
     {:noreply, %{state | subscribers: Map.delete(subscribers, pid)}}
