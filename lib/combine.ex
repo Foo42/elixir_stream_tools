@@ -74,9 +74,9 @@ defmodule StreamTools.Combine do
       receive do
           {:new_stream_item, ref, item} -> {[item], ref}
           {:eos, ^ref} -> {:halt, ref}
-          {:DOWN, ^ref, :process, _, _} ->
+          {:DOWN, ^ref, :process, _, reason} ->
             if linked? do
-              Process.exit(self(),:kill)
+              Process.exit(self(), reason)
             end
             {:halt, ref}
       end

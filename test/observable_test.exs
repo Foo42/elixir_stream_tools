@@ -53,4 +53,16 @@ defmodule StreamTools.ObservableTests do
     GenEvent.notify(events, 5)
     assert_receive {:stream_values, [:unset, 5]}
   end
+
+  test "dies when stream it is following dies" do
+    test_pid = self
+    {:ok, source} = Observable.start
+    {:ok, sink} = Observable.start Observable.stream_from_previous(source)
+    :timer.sleep(50)
+    sink_monitor = Process.monitor(sink)
+    Process.exit(source, :kill)
+    assert_receive {:DOWN, sink_monitor, _, _, :killed}
+
+    Process.exit(sink, :kill) #Just to clean up if it fails
+  end
 end

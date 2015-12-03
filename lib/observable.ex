@@ -9,10 +9,19 @@ defmodule StreamTools.Observable do
     GenServer.start_link __MODULE__, %{value: :unset,  subscribers: %{}}
   end
 
+  def start(stream) do
+    GenServer.start __MODULE__, %{value: :unset, following: stream, subscribers: %{}}
+  end
+
+  def start do
+    GenServer.start __MODULE__, %{value: :unset,  subscribers: %{}}
+  end
+
   def init(args) do
     case Map.get(args, :following) do
       nil -> nil
-      stream -> start_follower(stream, self)
+      stream ->
+        start_follower(stream, self)
     end
     {:ok, args}
   end
@@ -70,7 +79,9 @@ defmodule StreamTools.Observable do
     receive do
         {:new_stream_item, ref, item} -> {[item], ref}
         {:eos, ^ref} -> {:halt, ref}
-        {:DOWN, ^ref, :process, _, _} -> {:halt, ref}
+        {:DOWN, ^ref, :process, _, reason} ->
+          Process.exit(self(), reason)
+          {:halt, ref}
     end
   end
 
