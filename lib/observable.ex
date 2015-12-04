@@ -1,24 +1,26 @@
 defmodule StreamTools.Observable do
   use GenServer
 
-  def start_link(stream) do
-    GenServer.start_link __MODULE__, %{value: :unset, following: stream, subscribers: %{}}
+  def start_link(options \\ []) when is_list(options) do
+    defaults = %{value: :unset, subscribers: %{}}
+    state = case Keyword.get(options, :follow) do
+      nil -> defaults
+      stream -> defaults |> Map.put(:follow, stream)
+    end
+    GenServer.start_link __MODULE__, state, options
   end
 
-  def start_link do
-    GenServer.start_link __MODULE__, %{value: :unset,  subscribers: %{}}
-  end
-
-  def start(stream) do
-    GenServer.start __MODULE__, %{value: :unset, following: stream, subscribers: %{}}
-  end
-
-  def start do
-    GenServer.start __MODULE__, %{value: :unset,  subscribers: %{}}
+  def start(options \\ []) when is_list(options) do
+    defaults = %{value: :unset, subscribers: %{}}
+    state = case Keyword.get(options, :follow) do
+      nil -> defaults
+      stream -> defaults |> Map.put(:follow, stream)
+    end
+    GenServer.start __MODULE__, state, options
   end
 
   def init(args) do
-    case Map.get(args, :following) do
+    case Map.get(args, :follow) do
       nil -> nil
       stream ->
         start_follower(stream, self)

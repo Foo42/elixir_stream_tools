@@ -2,6 +2,11 @@ defmodule StreamTools.ObservableTests do
   use ExUnit.Case
   alias StreamTools.Observable
 
+  test "can start with name" do
+    {:ok, pid} = Observable.start_link [name: :foo]
+    assert Observable.value(:foo) == :unset
+  end
+
   test "value should initially be :unset" do
     {:ok, observable} = Observable.start_link
     assert Observable.value(observable) == :unset
@@ -37,7 +42,7 @@ defmodule StreamTools.ObservableTests do
   test "giving a stream on start causes observable to follow it" do
     test_pid = self
     {:ok, events} = GenEvent.start_link
-    {:ok, observable} = Observable.start_link GenEvent.stream(events)
+    {:ok, observable} = Observable.start_link [follow: GenEvent.stream(events)]
     :timer.sleep(50)
 
     spawn_link fn ->
@@ -57,7 +62,7 @@ defmodule StreamTools.ObservableTests do
   test "dies when stream it is following dies" do
     test_pid = self
     {:ok, source} = Observable.start
-    {:ok, sink} = Observable.start Observable.stream_from_previous(source)
+    {:ok, sink} = Observable.start [follow: Observable.stream_from_previous(source)]
     :timer.sleep(50)
     sink_monitor = Process.monitor(sink)
     Process.exit(source, :kill)

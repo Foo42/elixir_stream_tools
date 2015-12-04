@@ -2,11 +2,16 @@ defmodule StreamTools.CombineTests do
   use ExUnit.Case
   alias StreamTools.Combine
 
+  test "can start with name" do
+    {:ok, pid} = Combine.start_link name: :foo, follow: %{}
+    assert Combine.last_value(:foo) == %{}
+  end
+
   test "should begin with a map of nils for each stream" do
      {:ok, event_manager_a} = GenEvent.start_link
      {:ok, event_manager_b} = GenEvent.start_link
      stream_map = %{a: GenEvent.stream(event_manager_a), b: GenEvent.stream(event_manager_b)}
-     {:ok, combined} = Combine.start_link stream_map
+     {:ok, combined} = Combine.start_link follow: stream_map
 
      assert Combine.last_value(combined) == %{a: nil, b: nil}
   end
@@ -15,7 +20,7 @@ defmodule StreamTools.CombineTests do
      {:ok, event_manager_a} = GenEvent.start_link
      {:ok, event_manager_b} = GenEvent.start_link
      stream_map = %{a: GenEvent.stream(event_manager_a), b: GenEvent.stream(event_manager_b)}
-     {:ok, combined} = Combine.start_link stream_map
+     {:ok, combined} = Combine.start_link follow: stream_map
 
      :timer.sleep(100)
      GenEvent.notify(event_manager_b, 5)
@@ -27,7 +32,7 @@ defmodule StreamTools.CombineTests do
      {:ok, event_manager_a} = GenEvent.start_link
      {:ok, event_manager_b} = GenEvent.start_link
      stream_map = %{a: GenEvent.stream(event_manager_a), b: GenEvent.stream(event_manager_b)}
-     {:ok, combined} = Combine.start_link stream_map
+     {:ok, combined} = Combine.start_link follow: stream_map
      test_pid = self
      spawn_link fn ->
          Combine.stream(combined) |> Stream.each(&send(test_pid,&1)) |> Stream.run
@@ -40,7 +45,7 @@ defmodule StreamTools.CombineTests do
   test "should finish enumerating stream when combiner process dies" do
      {:ok, event_manager_a} = GenEvent.start_link
      stream_map = %{a: GenEvent.stream(event_manager_a)}
-     {:ok, combined} = Combine.start stream_map
+     {:ok, combined} = Combine.start follow: stream_map
      test_pid = self
      spawn_link fn ->
          all_recieved = Combine.stream(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
@@ -57,7 +62,7 @@ defmodule StreamTools.CombineTests do
   test "should die when combiner process dies if streaming with stream_linked" do
      {:ok, event_manager_a} = GenEvent.start_link
      stream_map = %{a: GenEvent.stream(event_manager_a)}
-     {:ok, combined} = Combine.start stream_map
+     {:ok, combined} = Combine.start follow: stream_map
      test_pid = self
      follower = spawn fn ->
          all_recieved = Combine.stream_linked(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
@@ -74,7 +79,7 @@ defmodule StreamTools.CombineTests do
   test "should die when producer process dies if streaming with stream_linked" do
      {:ok, event_manager_a} = GenEvent.start
      stream_map = %{a: GenEvent.stream(event_manager_a)}
-     {:ok, combined} = Combine.start stream_map
+     {:ok, combined} = Combine.start follow: stream_map
      test_pid = self
      follower = spawn fn ->
          all_recieved = Combine.stream_linked(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])

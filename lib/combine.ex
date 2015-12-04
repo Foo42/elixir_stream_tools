@@ -1,8 +1,21 @@
 defmodule StreamTools.Combine do
     use GenServer
 
-    def start_link(stream_map, options \\ []), do: GenServer.start_link(__MODULE__, %{streams: stream_map}, options)
-    def start(stream_map, options \\ []), do: GenServer.start(__MODULE__, %{streams: stream_map}, options)
+    def start_link(options \\ []) do
+      args = case Keyword.get(options, :follow) do
+        nil -> %{streams: %{}}
+        follow -> %{streams: follow}
+      end
+      GenServer.start_link(__MODULE__, args, options)
+    end
+
+    def start(options \\ []) do
+      args = case Keyword.get(options, :follow) do
+        nil -> %{streams: %{}}
+        follow -> %{streams: follow}
+      end
+      GenServer.start(__MODULE__, args, options)
+    end
 
     def last_value(combined), do: GenServer.call(combined, {:last_value})
 
