@@ -15,13 +15,15 @@ end
 
 defmodule StreamTools.SubscriberList do
   def new, do: %{}
-  def add(subscriber_list, pid, subscriber_ref) do
+  def add(subscriber_list, name, subscriber_ref) do
+    pid = GenServer.whereis(name)
     monitor = Process.monitor(pid)
     subscriber = %StreamTools.Subscriber{pid: pid, monitor: monitor, subscriber_ref: subscriber_ref}
     subscriber_list |> Map.put(pid, subscriber)
   end
 
-  def remove(subscriber_list, pid) do
+  def remove(subscriber_list, name) do
+    pid = GenServer.whereis(name)
     case Map.pop(subscriber_list, pid) do
       {nil, _list} -> subscriber_list
       {%{monitor: monitor}, updated_subscribers} ->
