@@ -1,5 +1,7 @@
 defmodule StreamTools.Combine do
     use GenServer
+    alias StreamTools.SubscriberList
+    alias StreamTools.Subscriber
 
     def start_link(options \\ []) do
       args = case Keyword.get(options, :follow) do
@@ -19,13 +21,10 @@ defmodule StreamTools.Combine do
 
     def last_value(combined), do: GenServer.call(combined, {:last_value})
 
-    def stream_linked(combined) do
-      stream(combined, true)
-    end
-    def stream(combined, linked? \\ false) do
+    def stream_latest_values(combined) do
       Stream.resource(
         fn -> begin_stream(combined) end,
-        &get_next_stream_item(&1, linked?),
+        &get_next_stream_item(&1),
         &close_stream(combined,&1))
     end
 
@@ -34,33 +33,30 @@ defmodule StreamTools.Combine do
     def init(%{streams: streams}) do
         start_followers streams
         initial_values = streams |> Map.keys |> Enum.into(%{}, &{&1 ,nil} )
-        {:ok, %{streams: streams, last_value: initial_values, subscribers: %{}}}
+        {:ok, %{streams: streams, last_value: initial_values, subscribers: SubscriberList.new}}
     end
 
     def handle_call({:last_value}, _from, state = %{last_value: last_value}), do: {:reply, last_value, state}
 
     def handle_call({:update, stream_name, value}, _from, state = %{last_value: last_value}) do
         updated_values = Map.put last_value, stream_name, value
-        publish_to_all_subscribers state.subscribers, updated_values
+        SubscriberList.publish(state.subscribers, updated_values)
         {:reply, last_value, %{state | last_value: updated_values}}
     end
 
     def handle_call({:subscribe, subscriber_pid, subscriber_ref}, _from, state) do
-      monitor = Process.monitor(subscriber_pid)
-      updated_subscribers = state.subscribers |> Map.put(subscriber_pid, %{subscriber_monitor: monitor, subscriber_ref: subscriber_ref})
+      updated_subscribers = SubscriberList.add(state.subscribers, subscriber_pid, subscriber_ref)
       {:reply, :ok, %{state | subscribers: updated_subscribers}}
     end
 
-    def handle_cast({:unsubscribe, pid, ref}, state = %{subscribers: subscribers}) do
-      case Map.get(state.subscribers, pid) do
-        nil -> nil
-        %{subscriber_monitor: monitor} -> Process.demonitor(monitor)
-      end
-      {:noreply, %{state | subscribers: Map.delete(subscribers, pid)}}
+    def handle_cast({:unsubscribe, pid, _ref}, state = %{subscribers: subscribers}) do
+      updated_subscribers = SubscriberList.remove(subscribers, pid)
+      {:noreply, %{state | subscribers: updated_subscribers}}
     end
 
-    def handle_info({:DOWN, ref, :process, pid, _reason}, state = %{subscribers: subscribers}) do
-      {:noreply, %{state | subscribers: Map.delete(subscribers, pid)}}
+    def handle_info({:DOWN, _ref, :process, pid, _reason}, state = %{subscribers: subscribers}) do
+      updated_subscribers = SubscriberList.remove(subscribers, pid)
+      {:noreply, %{state | subscribers: updated_subscribers}}
     end
 
     ###################################################
@@ -80,18 +76,13 @@ defmodule StreamTools.Combine do
 
     defp update_value(combined, stream_name, value), do: GenServer.call(combined, {:update, stream_name, value})
 
-    defp publish_to_all_subscribers(subscribers, message), do: subscribers |> Enum.each(&publish_to_subscriber(&1, message))
-    defp publish_to_subscriber({pid, %{subscriber_ref: ref}}, item), do: send(pid, {:new_stream_item, ref, item})
-
-    defp get_next_stream_item(ref, linked? \\ false) do
-      receive do
-          {:new_stream_item, ref, item} -> {[item], ref}
-          {:eos, ^ref} -> {:halt, ref}
-          {:DOWN, ^ref, :process, _, reason} ->
-            if linked? do
-              Process.exit(self(), reason)
-            end
-            {:halt, ref}
+    defp get_next_stream_item(ref) do
+      case Subscriber.get_next_message(ref) do
+        {:message, item} -> {[item],ref}
+        {:end, {:DOWN, ^ref, _, _, reason}} ->
+          Process.exit(self(), reason)
+          {:halt, ref}
+        {:end, :eos} -> {:halt, ref}
       end
     end
 
