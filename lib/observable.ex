@@ -1,8 +1,10 @@
 defmodule StreamTools.Observable do
   use GenServer
+  alias StreamTools.SubscriberList
+  alias StreamTools.Subscriber
 
   def start_link(options \\ []) when is_list(options) do
-    defaults = %{value: :unset, subscribers: %{}}
+    defaults = %{value: :unset, subscribers: SubscriberList.new}
     state = case Keyword.get(options, :follow) do
       nil -> defaults
       stream -> defaults |> Map.put(:follow, stream)
@@ -11,7 +13,7 @@ defmodule StreamTools.Observable do
   end
 
   def start(options \\ []) when is_list(options) do
-    defaults = %{value: :unset, subscribers: %{}}
+    defaults = %{value: :unset, subscribers: SubscriberList.new}
     state = case Keyword.get(options, :follow) do
       nil -> defaults
       stream -> defaults |> Map.put(:follow, stream)
@@ -43,47 +45,41 @@ defmodule StreamTools.Observable do
   def handle_call({:value}, _from, %{value: value} = state), do: {:reply, value, state}
 
   def handle_call({:set, value}, _from, state) do
-    IO.puts "setting value from #{inspect state.value} to #{inspect value}"
     case state.value do
       ^value -> {:reply, :unchanged, state}
       _old_value ->
-        publish(value, state.subscribers)
+        SubscriberList.publish(state.subscribers, value)
         {:reply, :changed, %{state | value: value}}
     end
   end
 
   def handle_call({:subscribe, pid, ref}, _from, state) do
-    monitor = Process.monitor(pid)
-    subscribers = state.subscribers |> Map.put(pid, %{subscriber_monitor: monitor, subscriber_ref: ref})
+    subscribers = SubscriberList.add(state.subscribers, pid, ref)
     {:reply, :ok, %{state | subscribers: subscribers}}
   end
 
-  def handle_cast({:unsubscribe, pid, ref}, state) do
-    case Map.get(state.subscribers, pid) do
-      nil -> nil
-      %{subscriber_monitor: monitor} -> Process.demonitor(monitor)
-    end
-    {:noreply, %{state | subscribers: Map.delete(state.subscribers, pid)}}
+  def handle_cast({:unsubscribe, pid, _ref}, state) do
+    subscribers = SubscriberList.remove(state.subscribers, pid)
+    {:noreply, %{state | subscribers: subscribers}}
   end
 
-  def handle_info({:DOWN, ref, :process, pid, _reason}, state = %{subscribers: subscribers}) do
-    {:noreply, %{state | subscribers: Map.delete(subscribers, pid)}}
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state = %{subscribers: subscribers}) do
+    {:noreply, %{state | subscribers: SubscriberList.remove(subscribers, pid)}}
   end
 
   ########################################################
 
   defp start_follower(stream, target) do
-    IO.puts("following #{inspect target}")
     spawn_link(fn -> stream |> Stream.each(&set(target,&1)) |> Stream.run() end)
   end
 
   defp get_next_stream_item(ref) do
-    receive do
-        {:new_stream_item, ref, item} -> {[item], ref}
-        {:eos, ^ref} -> {:halt, ref}
-        {:DOWN, ^ref, :process, _, reason} ->
-          Process.exit(self(), reason)
-          {:halt, ref}
+    case Subscriber.get_next_message(ref) do
+      {:message, item} -> {[item],ref}
+      {:end, {:DOWN, ^ref, _, _, reason}} ->
+        Process.exit(self(), reason)
+        {:halt, ref}
+      {:end, :eos} -> {:halt, ref}
     end
   end
 
@@ -96,11 +92,5 @@ defmodule StreamTools.Observable do
   defp close_stream(observable, ref) do
     Process.demonitor(ref)
     GenServer.cast(observable, {:unsubscribe, self(), ref})
-  end
-
-  defp publish(value, subscribers) do
-    IO.puts "publishing #{inspect value} to subscribers"
-    subscribers
-    |> Enum.each(fn {pid, %{subscriber_ref: ref}} -> send(pid, {:new_stream_item, ref, value}) end)
   end
 end

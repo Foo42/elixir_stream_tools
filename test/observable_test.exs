@@ -3,7 +3,7 @@ defmodule StreamTools.ObservableTests do
   alias StreamTools.Observable
 
   test "can start with name" do
-    {:ok, pid} = Observable.start_link [name: :foo]
+    {:ok, _pid} = Observable.start_link [name: :foo]
     assert Observable.value(:foo) == :unset
   end
 
@@ -60,13 +60,12 @@ defmodule StreamTools.ObservableTests do
   end
 
   test "dies when stream it is following dies" do
-    test_pid = self
     {:ok, source} = Observable.start
     {:ok, sink} = Observable.start [follow: Observable.stream_from_previous(source)]
     :timer.sleep(50)
     sink_monitor = Process.monitor(sink)
     Process.exit(source, :kill)
-    assert_receive {:DOWN, sink_monitor, _, _, :killed}
+    assert_receive {:DOWN, ^sink_monitor, _, _, :killed}
 
     Process.exit(sink, :kill) #Just to clean up if it fails
   end

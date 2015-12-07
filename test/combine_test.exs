@@ -3,7 +3,7 @@ defmodule StreamTools.CombineTests do
   alias StreamTools.Combine
 
   test "can start with name" do
-    {:ok, pid} = Combine.start_link name: :foo, follow: %{}
+    {:ok, _pid} = Combine.start_link name: :foo, follow: %{}
     assert Combine.last_value(:foo) == %{}
   end
 
@@ -65,7 +65,7 @@ defmodule StreamTools.CombineTests do
      {:ok, combined} = Combine.start follow: stream_map
      test_pid = self
      follower = spawn fn ->
-         all_recieved = Combine.stream_linked(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
+         Combine.stream_linked(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
          send test_pid, "exited nicely"
      end
      :timer.sleep(100)
@@ -82,7 +82,7 @@ defmodule StreamTools.CombineTests do
      {:ok, combined} = Combine.start follow: stream_map
      test_pid = self
      follower = spawn fn ->
-         all_recieved = Combine.stream_linked(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
+         Combine.stream_linked(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
          send test_pid, "exited nicely"
      end
      :timer.sleep(100)
