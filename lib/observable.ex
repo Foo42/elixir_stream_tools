@@ -84,7 +84,8 @@ defmodule StreamTools.Observable do
   end
 
   defp begin_stream(observable) do
-    ref = Process.monitor(observable)
+    pid = GenServer.whereis(observable)
+    ref = Process.monitor(pid)
     :ok = GenServer.call(observable, {:subscribe, self(), ref})
     ref
   end

@@ -87,7 +87,8 @@ defmodule StreamTools.Combine do
     end
 
     defp begin_stream(combined) do
-      ref = Process.monitor(combined)
+      pid = GenServer.whereis(combined)
+      ref = Process.monitor(pid)
       :ok = GenServer.call(combined, {:subscribe, self(), ref})
       ref
     end
