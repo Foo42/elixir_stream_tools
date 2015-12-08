@@ -46,7 +46,7 @@ defmodule StreamTools.Combine do
 
     def handle_call({:subscribe, subscriber_pid, subscriber_ref}, _from, state) do
       updated_subscribers = SubscriberList.add(state.subscribers, subscriber_pid, subscriber_ref)
-      {:reply, :ok, %{state | subscribers: updated_subscribers}}
+      {:reply, {:ok, state.last_value}, %{state | subscribers: updated_subscribers}}
     end
 
     def handle_cast({:unsubscribe, pid, _ref}, state = %{subscribers: subscribers}) do
@@ -76,6 +76,10 @@ defmodule StreamTools.Combine do
 
     defp update_value(combined, stream_name, value), do: GenServer.call(combined, {:update, stream_name, value})
 
+    defp get_next_stream_item({ref, initial}) do
+      {[initial], ref}
+    end
+
     defp get_next_stream_item(ref) do
       case Subscriber.get_next_message(ref) do
         {:message, item} -> {[item],ref}
@@ -89,8 +93,8 @@ defmodule StreamTools.Combine do
     defp begin_stream(combined) do
       pid = GenServer.whereis(combined)
       ref = Process.monitor(pid)
-      :ok = GenServer.call(combined, {:subscribe, self(), ref})
-      ref
+      {:ok, initial} = GenServer.call(combined, {:subscribe, self(), ref})
+      {ref, initial}
     end
 
     defp close_stream(combined, ref) do
