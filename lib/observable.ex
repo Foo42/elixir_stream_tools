@@ -93,6 +93,7 @@ defmodule StreamTools.Observable do
     {ref, start_value}
   end
 
+  defp close_stream(combined, {ref,_value}), do: close_stream(combined, ref)
   defp close_stream(observable, ref) do
     Process.demonitor(ref)
     GenServer.cast(observable, {:unsubscribe, self(), ref})

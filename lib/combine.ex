@@ -97,6 +97,7 @@ defmodule StreamTools.Combine do
       {ref, initial}
     end
 
+    defp close_stream(combined, {ref,_value}), do: close_stream(combined, ref)
     defp close_stream(combined, ref) do
       Process.demonitor(ref)
       GenServer.cast(combined, {:unsubscribe, self(), ref})
