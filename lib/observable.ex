@@ -34,11 +34,10 @@ defmodule StreamTools.Observable do
   def set(observable, value), do: GenServer.call(observable, {:set, value})
 
   def stream_from_previous(observable) do
-    updates = Stream.resource(
+    Stream.resource(
       fn -> begin_stream(observable) end,
       &get_next_stream_item(&1),
       &close_stream(observable,&1))
-    Stream.concat([value(observable)], updates)
   end
   ########################################################
 
@@ -55,7 +54,7 @@ defmodule StreamTools.Observable do
 
   def handle_call({:subscribe, pid, ref}, _from, state) do
     subscribers = SubscriberList.add(state.subscribers, pid, ref)
-    {:reply, :ok, %{state | subscribers: subscribers}}
+    {:reply, {:ok, state.value}, %{state | subscribers: subscribers}}
   end
 
   def handle_cast({:unsubscribe, pid, _ref}, state) do
@@ -73,6 +72,10 @@ defmodule StreamTools.Observable do
     spawn_link(fn -> stream |> Stream.each(&set(target,&1)) |> Stream.run() end)
   end
 
+  defp get_next_stream_item({ref, first_item}) do
+    {[first_item], ref}
+  end
+
   defp get_next_stream_item(ref) do
     case Subscriber.get_next_message(ref) do
       {:message, item} -> {[item],ref}
@@ -86,8 +89,8 @@ defmodule StreamTools.Observable do
   defp begin_stream(observable) do
     pid = GenServer.whereis(observable)
     ref = Process.monitor(pid)
-    :ok = GenServer.call(observable, {:subscribe, self(), ref})
-    ref
+    {:ok, start_value} = GenServer.call(observable, {:subscribe, self(), ref})
+    {ref, start_value}
   end
 
   defp close_stream(observable, ref) do
