@@ -1,7 +1,7 @@
-defmodule StreamTools.Observable do
+defmodule StreamWeaver.Observable do
   use GenServer
-  alias StreamTools.SubscriberList
-  alias StreamTools.Subscriber
+  alias StreamWeaver.SubscriberList
+  alias StreamWeaver.Subscriber
 
   def start_link(options \\ []) when is_list(options) do
     defaults = %{value: :unset, subscribers: SubscriberList.new}

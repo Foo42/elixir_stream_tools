@@ -1,4 +1,4 @@
-defmodule StreamTools.Subscriber do
+defmodule StreamWeaver.Subscriber do
   defstruct monitor: nil, subscriber_ref: nil, pid: nil
   def publish(%{pid: pid, subscriber_ref: subscriber_ref}, message) do
     send(pid, {:new_stream_item, subscriber_ref, message})
@@ -13,12 +13,12 @@ defmodule StreamTools.Subscriber do
   end
 end
 
-defmodule StreamTools.SubscriberList do
+defmodule StreamWeaver.SubscriberList do
   def new, do: %{}
   def add(subscriber_list, name, subscriber_ref) do
     pid = GenServer.whereis(name)
     monitor = Process.monitor(pid)
-    subscriber = %StreamTools.Subscriber{pid: pid, monitor: monitor, subscriber_ref: subscriber_ref}
+    subscriber = %StreamWeaver.Subscriber{pid: pid, monitor: monitor, subscriber_ref: subscriber_ref}
     subscriber_list |> Map.put(pid, subscriber)
   end
 
@@ -35,6 +35,6 @@ defmodule StreamTools.SubscriberList do
   def publish(subscriber_list, message) do
     subscriber_list
       |> Map.values
-      |> Enum.each(&StreamTools.Subscriber.publish(&1, message))
+      |> Enum.each(&StreamWeaver.Subscriber.publish(&1, message))
   end
 end

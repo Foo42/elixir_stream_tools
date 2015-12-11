@@ -1,6 +1,6 @@
-defmodule StreamTools.CombineTests do
+defmodule StreamWeaver.CombineTests do
   use ExUnit.Case
-  alias StreamTools.Combine
+  alias StreamWeaver.Combine
 
   test "can start with name" do
     {:ok, _pid} = Combine.start_link name: :foo, follow: %{}

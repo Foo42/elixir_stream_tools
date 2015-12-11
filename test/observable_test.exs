@@ -1,6 +1,6 @@
-defmodule StreamTools.ObservableTests do
+defmodule StreamWeaver.ObservableTests do
   use ExUnit.Case
-  alias StreamTools.Observable
+  alias StreamWeaver.Observable
 
   test "can start with name" do
     {:ok, _pid} = Observable.start_link [name: :foo]

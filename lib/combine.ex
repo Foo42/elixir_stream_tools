@@ -1,7 +1,7 @@
-defmodule StreamTools.Combine do
+defmodule StreamWeaver.Combine do
     use GenServer
-    alias StreamTools.SubscriberList
-    alias StreamTools.Subscriber
+    alias StreamWeaver.SubscriberList
+    alias StreamWeaver.Subscriber
 
     def start_link(options \\ []) do
       args = case Keyword.get(options, :follow) do
