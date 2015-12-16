@@ -19,9 +19,9 @@ defmodule StreamWeaver.Combine do
       GenServer.start(__MODULE__, args, options)
     end
 
-    def last_value(combined), do: GenServer.call(combined, {:last_value})
-
-    def stream_latest_values(combined) do
+    def get_current_value(combined), do: GenServer.call(combined, {:last_value})
+    
+    def stream_from_current_value(combined) do
       Stream.resource(
         fn -> begin_stream(combined) end,
         &get_next_stream_item(&1),

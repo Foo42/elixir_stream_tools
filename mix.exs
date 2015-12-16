@@ -3,8 +3,8 @@ defmodule StreamWeaver.Mixfile do
 
   def project do
     [app: :stream_weaver,
-     version: "0.0.1",
-     elixir: "~> 1.0",
+     version: "0.0.2",
+     elixir: "~> 1.1",
      name: "StreamWeaver",
      maintainers: ["julianhaeger@gmail.com"],
      links: ["https://github.com/Foo42/elixir_stream_tools"],

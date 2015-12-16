@@ -4,21 +4,21 @@ defmodule StreamWeaver.ObservableTests do
 
   test "can start with name" do
     {:ok, _pid} = Observable.start_link [name: :foo]
-    assert Observable.value(:foo) == :unset
+    assert Observable.get_current_value(:foo) == :unset
   end
 
   test "value should initially be :unset" do
     {:ok, observable} = Observable.start_link
-    assert Observable.value(observable) == :unset
+    assert Observable.get_current_value(observable) == :unset
   end
 
   test "setting value should change it when queried" do
     {:ok, observable} = Observable.start_link
     Observable.set(observable, 5)
-    assert Observable.value(observable) == 5
+    assert Observable.get_current_value(observable) == 5
   end
 
-  test "stream_from_previous should return a stream with current value in and any changes in value" do
+  test "stream_from_current_value should return a stream with current value in and any changes in value" do
     test_pid = self()
     {:ok, observable} = Observable.start_link
     Observable.set(observable, 5)
@@ -26,7 +26,7 @@ defmodule StreamWeaver.ObservableTests do
     spawn_link fn ->
       stream_values =
         observable
-        |> Observable.stream_from_previous
+        |> Observable.stream_from_current_value
         |> Stream.take(2)
         |> Enum.to_list
 
@@ -48,7 +48,7 @@ defmodule StreamWeaver.ObservableTests do
     spawn_link fn ->
       stream_values =
         observable
-        |> Observable.stream_from_previous
+        |> Observable.stream_from_current_value
         |> Stream.take(2)
         |> Enum.to_list
 
@@ -61,7 +61,7 @@ defmodule StreamWeaver.ObservableTests do
 
   test "dies when stream it is following dies" do
     {:ok, source} = Observable.start
-    {:ok, sink} = Observable.start [follow: Observable.stream_from_previous(source)]
+    {:ok, sink} = Observable.start [follow: Observable.stream_from_current_value(source)]
     :timer.sleep(50)
     sink_monitor = Process.monitor(sink)
     Process.exit(source, :kill)

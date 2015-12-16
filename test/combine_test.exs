@@ -4,7 +4,7 @@ defmodule StreamWeaver.CombineTests do
 
   test "can start with name" do
     {:ok, _pid} = Combine.start_link name: :foo, follow: %{}
-    assert Combine.last_value(:foo) == %{}
+    assert Combine.get_current_value(:foo) == %{}
   end
 
   test "should begin with a map of nils for each stream" do
@@ -13,10 +13,10 @@ defmodule StreamWeaver.CombineTests do
      stream_map = %{a: GenEvent.stream(event_manager_a), b: GenEvent.stream(event_manager_b)}
      {:ok, combined} = Combine.start_link follow: stream_map
 
-     assert Combine.last_value(combined) == %{a: nil, b: nil}
+     assert Combine.get_current_value(combined) == %{a: nil, b: nil}
   end
 
-  test "should update last_value with values from input streams when they emit values" do
+  test "should update get_current_value with values from input streams when they emit values" do
      {:ok, event_manager_a} = GenEvent.start_link
      {:ok, event_manager_b} = GenEvent.start_link
      stream_map = %{a: GenEvent.stream(event_manager_a), b: GenEvent.stream(event_manager_b)}
@@ -25,7 +25,7 @@ defmodule StreamWeaver.CombineTests do
      :timer.sleep(100)
      GenEvent.notify(event_manager_b, 5)
      :timer.sleep(100)
-     assert Combine.last_value(combined) == %{a: nil, b: 5}
+     assert Combine.get_current_value(combined) == %{a: nil, b: 5}
   end
 
   test "should stream combined value" do
@@ -35,7 +35,7 @@ defmodule StreamWeaver.CombineTests do
      {:ok, combined} = Combine.start_link follow: stream_map
      test_pid = self
      spawn_link fn ->
-         Combine.stream_latest_values(combined) |> Stream.each(&send(test_pid,&1)) |> Stream.run
+         Combine.stream_from_current_value(combined) |> Stream.each(&send(test_pid,&1)) |> Stream.run
      end
      :timer.sleep(100)
      GenEvent.notify(event_manager_b, 5)
@@ -48,7 +48,7 @@ defmodule StreamWeaver.CombineTests do
      {:ok, combined} = Combine.start follow: stream_map
      test_pid = self
      follower = spawn fn ->
-         Combine.stream_latest_values(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
+         Combine.stream_from_current_value(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
          send test_pid, "exited nicely"
      end
      :timer.sleep(100)
@@ -65,7 +65,7 @@ defmodule StreamWeaver.CombineTests do
      {:ok, combined} = Combine.start follow: stream_map
      test_pid = self
      follower = spawn fn ->
-         Combine.stream_latest_values(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
+         Combine.stream_from_current_value(combined) |> Stream.each(&send(test_pid,&1)) |> Enum.into([])
          send test_pid, "exited nicely"
      end
      :timer.sleep(100)

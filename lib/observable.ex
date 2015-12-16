@@ -30,10 +30,10 @@ defmodule StreamWeaver.Observable do
     {:ok, args}
   end
 
-  def value(observable), do: GenServer.call(observable, {:value})
+  def get_current_value(observable), do: GenServer.call(observable, {:value})
   def set(observable, value), do: GenServer.call(observable, {:set, value})
 
-  def stream_from_previous(observable) do
+  def stream_from_current_value(observable) do
     Stream.resource(
       fn -> begin_stream(observable) end,
       &get_next_stream_item(&1),
